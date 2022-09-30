@@ -11,7 +11,8 @@ runVonCommand() {
 	pushd .build > /dev/null
 
 	if [[ ! -d "von-network" ]] ; then
-		git clone https://github.com/bcgov/von-network.git > /dev/null
+		#git clone https://github.com/bcgov/von-network.git > /dev/null
+		git clone https://github.com/lauravuo/von-network.git > /dev/null
 		pushd von-network > /dev/null
 	else
 		pushd von-network > /dev/null

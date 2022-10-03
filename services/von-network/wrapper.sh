@@ -9,10 +9,12 @@ export COMPOSE_PROJECT_NAME=von
 runVonCommand() {
 	mkdir -p .build
 	pushd .build > /dev/null
+	
+	docker pull ghcr.io/lauravuo/von-network:latest
+	docker tag ghcr.io/lauravuo/von-network:latest von-network-base
 
 	if [[ ! -d "von-network" ]] ; then
-		#git clone https://github.com/bcgov/von-network.git > /dev/null
-		git clone https://github.com/lauravuo/von-network.git > /dev/null
+		git clone https://github.com/bcgov/von-network.git > /dev/null
 		pushd von-network > /dev/null
 	else
 		pushd von-network > /dev/null

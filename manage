@@ -1250,11 +1250,13 @@ exit_status=0
 
 case "${COMMAND}" in
   build)
-      buildImages ${@} --platform linux/amd64
+#      buildImages ${@} --platform linux/amd64
+      buildImages ${@}
     ;;
 
   rebuild)
-      buildImages --no-cache ${@} --platform linux/amd64
+#      buildImages --no-cache ${@} --platform linux/amd64
+       buildImages --no-cache ${@}
     ;;
 
   run)

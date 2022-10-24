@@ -1,17 +1,126 @@
+ARG ASKAR_VERSION="0.2.7"
+ARG CREDX_VERSION="0.3.1"
+#ARG VDR_VERSION="0.3.4"
+ARG CMAKE_VERSION="3.23.4"
+
+FROM ubuntu:18.04 AS askar-builder
+ARG ASKAR_VERSION
+ARG CREDX_VERSION
+ARG CMAKE_VERSION
+
+RUN apt-get update && \
+  apt-get install -y \
+  build-essential \
+  git \
+  curl
+
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.56.0
+ENV PATH=/root/.cargo/bin:$PATH
+ENV RUST_BACKTRACE=1
+
+# ASKAR
+RUN curl -sOL https://github.com/hyperledger/aries-askar/archive/v${ASKAR_VERSION}.tar.gz && \
+  tar -xvf v${ASKAR_VERSION}.tar.gz && \
+  cd ./aries-askar-${ASKAR_VERSION} && \
+  sh build.sh
+
+# BBS
+RUN git clone https://github.com/mattrglobal/ffi-bbs-signatures.git && \
+  cd ffi-bbs-signatures && \
+  mkdir -p ./out && ./scripts/build.sh LINUX ./out && \
+  ls -la
+
+# CREDX
+RUN apt-get update && \
+  apt-get install -y \
+  libssl-dev \
+  pkg-config
+
+RUN curl -sOL https://github.com/hyperledger/indy-shared-rs/archive/v${CREDX_VERSION}.tar.gz && \
+  tar -xvf v${CREDX_VERSION}.tar.gz && \
+  cd ./indy-shared-rs-${CREDX_VERSION} && \
+  sh build.sh
+
+# VDR
+RUN apt-get update && \
+  apt-get install -y \
+  cmake \
+  libzmq5-dev
+
+RUN curl -sOL https://github.com/Kitware/CMake/archive/v${CMAKE_VERSION}.tar.gz && \
+  tar -xvf v${CMAKE_VERSION}.tar.gz && \
+  cd ./CMake-${CMAKE_VERSION} && \
+  cmake . && \
+  make && \
+  make install
+
+ENV BUILD_FEATURES zmq_vendored
+
+# hack for replacing version to 0.3 since latest release did not build
+RUN git clone https://github.com/hyperledger/indy-vdr.git && \
+  sed -i "s/0.4.0/0.3.9/" /indy-vdr/libindy_vdr/Cargo.toml && \
+  sed -i "s/0.4/0.3/" /indy-vdr/indy-vdr-proxy/Cargo.toml && \
+  sed -i "s/0.4.0/0.3.9/" /indy-vdr/wrappers/python/indy_vdr/version.py && \
+  cd ./indy-vdr-${VDR_VERSION} && \
+  sh build.sh
+
+# arm + amd compatible Dockerfile
+FROM ghcr.io/findy-network/findy-base:indy-1.16.ubuntu-18.04 AS indy-base
+ARG ASKAR_VERSION
+ARG CREDX_VERSION
+
 FROM python:3.9-slim-bullseye
 
+# Copy both libs and wrapper code
+
+# ASKAR
+COPY --from=askar-builder /aries-askar-${ASKAR_VERSION}/target/release/libaries_askar.a /usr/lib/libaries_askar.a
+COPY --from=askar-builder /aries-askar-${ASKAR_VERSION}/target/release/libaries_askar.d /usr/lib/libaries_askar.d
+COPY --from=askar-builder /aries-askar-${ASKAR_VERSION}/target/release/libaries_askar.rlib /usr/lib/libaries_askar.rlib
+COPY --from=askar-builder /aries-askar-${ASKAR_VERSION}/target/release/libaries_askar.so /usr/lib/libaries_askar.so
+COPY --from=askar-builder /aries-askar-${ASKAR_VERSION} /aries-askar-${ASKAR_VERSION}
+
+# BBS
+COPY --from=askar-builder /ffi-bbs-signatures/out/linux/libbbs.so /usr/lib/libbbs.so
+COPY --from=askar-builder /ffi-bbs-signatures /ffi-bbs-signatures
+
+# CREDX
+COPY --from=askar-builder /indy-shared-rs-${CREDX_VERSION}/target/release/libindy_credx.a /usr/lib/libindy_credx.a
+COPY --from=askar-builder /indy-shared-rs-${CREDX_VERSION}/target/release/libindy_credx.d /usr/lib/libindy_credx.d
+COPY --from=askar-builder /indy-shared-rs-${CREDX_VERSION}/target/release/libindy_credx.rlib /usr/lib/libindy_credx.rlib
+COPY --from=askar-builder /indy-shared-rs-${CREDX_VERSION}/target/release/libindy_credx.so /usr/lib/libindy_credx.so
+COPY --from=askar-builder /indy-shared-rs-${CREDX_VERSION} /indy-shared-rs-${CREDX_VERSION}
+
+# VDR
+COPY --from=askar-builder /indy-vdr/target/release/libindy_vdr.a /usr/lib/libindy_vdr.a
+COPY --from=askar-builder /indy-vdr/target/release/libindy_vdr.d /usr/lib/libindy_vdr.d
+COPY --from=askar-builder /indy-vdr/target/release/libindy_vdr.rlib /usr/lib/libindy_vdr.rlib
+COPY --from=askar-builder /indy-vdr/target/release/libindy_vdr.so /usr/lib/libindy_vdr.so
+COPY --from=askar-builder /indy-vdr /indy-vdr
+
 RUN apt-get update \
-   && apt-get install -y git gnupg2 software-properties-common curl \
-   && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CE7709D068DB5E88 \
-   && add-apt-repository 'deb https://repo.sovrin.org/sdk/deb bionic stable' \
-   && apt-get update \
-   && apt-get install -y libindy libnullpay
+  && apt-get install -y git gnupg2 software-properties-common curl build-essential
+
+# install indy deps and files from base
+RUN apt-get update && apt-get install -y libsodium23 libssl1.1 libzmq5
+COPY --from=indy-base /usr/include/indy /usr/include/indy
+COPY --from=indy-base /usr/lib/libindy.a /usr/lib/libindy.a
+COPY --from=indy-base /usr/lib/libindy.so /usr/lib/libindy.so
+
+RUN cd /aries-askar-0.2.7/wrappers/python && \
+  python setup.py bdist_wheel --python-tag=py3
 
 RUN mkdir -p /aries-backchannels
 WORKDIR /aries-backchannels
 
 ADD https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 ./jq
 RUN chmod +x ./jq
+
+# install local wrappers
+RUN python3 -m pip install /aries-askar-0.2.7/wrappers/python
+RUN python3 -m pip install /ffi-bbs-signatures/wrappers/python
+RUN python3 -m pip install /indy-shared-rs-0.3.1/wrappers/python
+RUN python3 -m pip install /indy-vdr/wrappers/python
 
 COPY python/requirements.txt python/
 COPY acapy/requirements-main.txt acapy/

@@ -5,6 +5,7 @@ python3-indy
 #aries-cloudagent==0.5.2
 ptvsd
 aiohttp>=3.8.1
-ConfigArgParse
+ConfigArgParse~=1.5.3
+#ConfigArgParse
 typing_extensions
 base58

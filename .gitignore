@@ -53,3 +53,7 @@ env/
 .project
 .settings
 target/
+.envrc
+aries-test-harness/allure/cookiesFile
+aries-test-harness/allure/projects/*csv
+aries-test-harness/allure/projects/*json

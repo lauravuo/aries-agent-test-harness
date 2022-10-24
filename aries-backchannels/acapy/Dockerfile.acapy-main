@@ -141,4 +141,6 @@ ENV RUNMODE=docker
 
 RUN ./bin/aca-py --version > ./acapy-version.txt
 
+ENV ACAPY_LOG_LEVEL debug
+
 ENTRYPOINT ["bash", "acapy/ngrok-wait.sh"]

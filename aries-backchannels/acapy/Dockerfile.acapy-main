@@ -58,11 +58,11 @@ ENV BUILD_FEATURES zmq_vendored
 
 # hack for replacing version to 0.3 since latest release did not build
 RUN git clone https://github.com/hyperledger/indy-vdr.git && \
-  sed -i "s/0.4.0/0.3.9/" /indy-vdr/libindy_vdr/Cargo.toml && \
-  sed -i "s/0.4/0.3/" /indy-vdr/indy-vdr-proxy/Cargo.toml && \
-  sed -i "s/0.4.0/0.3.9/" /indy-vdr/wrappers/python/indy_vdr/version.py && \
-  cd ./indy-vdr-${VDR_VERSION} && \
-  sh build.sh
+   sed -i "s/0.4.0/0.3.9/" /indy-vdr/libindy_vdr/Cargo.toml && \
+   sed -i "s/0.4/0.3/" /indy-vdr/indy-vdr-proxy/Cargo.toml && \
+   sed -i "s/0.4.0/0.3.9/" /indy-vdr/wrappers/python/indy_vdr/version.py && \
+   cd ./indy-vdr && \
+   sh build.sh
 
 # arm + amd compatible Dockerfile
 FROM ghcr.io/findy-network/findy-base:indy-1.16.ubuntu-18.04 AS indy-base

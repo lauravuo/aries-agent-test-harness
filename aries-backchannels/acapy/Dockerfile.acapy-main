@@ -14,7 +14,11 @@ RUN apt-get update && \
   git \
   curl
 
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.56.0
+# Temp hack for QEMU-compatible rust
+#RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.56.0
+ENV SHELL "/bin/sh"
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sed 's#/proc/self/exe#$SHELL#g' | sh -s -- -y
+
 ENV PATH=/root/.cargo/bin:$PATH
 ENV RUST_BACKTRACE=1
 

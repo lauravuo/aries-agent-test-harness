@@ -14,7 +14,7 @@ runVonCommand() {
 	docker tag ghcr.io/lauravuo/von-network:latest von-network-base
 
 	if [[ ! -d "von-network" ]] ; then
-		git clone https://github.com/bcgov/von-network.git > /dev/null
+		git clone --depth=1 https://github.com/bcgov/von-network.git > /dev/null
 		pushd von-network > /dev/null
 	else
 		pushd von-network > /dev/null

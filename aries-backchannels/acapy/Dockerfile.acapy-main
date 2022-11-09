@@ -3,6 +3,8 @@ ARG CREDX_VERSION="0.3.1"
 #ARG VDR_VERSION="0.3.4"
 
 FROM ghcr.io/lauravuo/aries-agent-test-harness/acapy-main-base
+ARG ASKAR_VERSION
+ARG CREDX_VERSION
 
 RUN mkdir -p /aries-backchannels
 WORKDIR /aries-backchannels

@@ -1,29 +1,6 @@
-# temp stage for anoncreds for 64-bit arm
 ARG ANONCREDS_VERSION="0.1.0-dev.9"
 
-FROM ubuntu:22.04 AS anoncreds-builder
-ARG ANONCREDS_VERSION
-
-RUN apt-get update && \
-  apt-get install -y \
-  build-essential \
-  libssl-dev \
-  pkg-config \
-  git \
-  curl
-
-# Temp hack for QEMU-compatible rust
-ENV SHELL "/bin/sh"
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sed 's#/proc/self/exe#$SHELL#g' | sh -s -- -y
-
-ENV PATH=/root/.cargo/bin:$PATH
-ENV RUST_BACKTRACE=1
-
-# ASKAR
-RUN curl -sOL https://github.com/hyperledger/anoncreds-rs/archive/v${ANONCREDS_VERSION}.tar.gz && \
-  tar -xvf v${ANONCREDS_VERSION}.tar.gz && \
-  cd ./anoncreds-rs-${ANONCREDS_VERSION} && \
-  sh build.sh
+FROM ghcr.io/lauravuo/aries-agent-test-harness/acapy-main-base AS anoncreds-base
 
 # arm + amd compatible Dockerfile
 FROM ghcr.io/findy-network/findy-agent-infra/indy-base:indy-1.16.ubuntu-22.04 AS indy-base
@@ -42,11 +19,11 @@ COPY --from=indy-base /usr/include/indy /usr/include/indy
 COPY --from=indy-base /usr/lib/libindy.a /usr/lib/libindy.a
 COPY --from=indy-base /usr/lib/libindy.so /usr/lib/libindy.so
 
-COPY --from=anoncreds-builder /anoncreds-rs-${ANONCREDS_VERSION}/target/release/libanoncreds.a /usr/lib/libanoncreds.a
-COPY --from=anoncreds-builder /anoncreds-rs-${ANONCREDS_VERSION}/target/release/libanoncreds.d /usr/lib/libanoncreds.d
-COPY --from=anoncreds-builder /anoncreds-rs-${ANONCREDS_VERSION}/target/release/libanoncreds.rlib /usr/lib/libanoncreds.rlib
-COPY --from=anoncreds-builder /anoncreds-rs-${ANONCREDS_VERSION}/target/release/libanoncreds.so /usr/lib/libanoncreds.so
-COPY --from=anoncreds-builder /anoncreds-rs-${ANONCREDS_VERSION} /anoncreds-rs-${ANONCREDS_VERSION}
+COPY --from=anoncreds-base /usr/lib/libanoncreds.a /usr/lib/libanoncreds.a
+COPY --from=anoncreds-base /usr/lib/libanoncreds.d /usr/lib/libanoncreds.d
+COPY --from=anoncreds-base /usr/lib/libanoncreds.rlib /usr/lib/libanoncreds.rlib
+COPY --from=anoncreds-base /usr/lib/libanoncreds.so /usr/lib/libanoncreds.so
+COPY --from=anoncreds-base /anoncreds-rs-${ANONCREDS_VERSION} /anoncreds-rs-${ANONCREDS_VERSION}
 
 ENV LIB_ANONCREDS_PATH /usr/lib/
 
@@ -88,6 +65,10 @@ WORKDIR /src
 ENV RUN_MODE="docker"
 
 COPY javascript/server/package.json package.json
+
+RUN cd /anoncreds-rs-${ANONCREDS_VERSION}/wrappers/javascript && \
+  yarn install && \
+  yarn build
 
 # Run install after copying only depdendency file
 # to make use of docker layer caching

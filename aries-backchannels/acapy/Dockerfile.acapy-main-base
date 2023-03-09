@@ -2,11 +2,13 @@ ARG ASKAR_VERSION="0.2.7"
 ARG CREDX_VERSION="0.3.1"
 #ARG VDR_VERSION="0.3.4"
 ARG CMAKE_VERSION="3.23.4"
+ARG ANONCREDS_VERSION="0.1.0-dev.9"
 
 FROM ubuntu:18.04 AS askar-builder
 ARG ASKAR_VERSION
 ARG CREDX_VERSION
 ARG CMAKE_VERSION
+ARG ANONCREDS_VERSION
 
 RUN apt-get update && \
   apt-get install -y \
@@ -18,6 +20,8 @@ RUN apt-get update && \
 #RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.56.0
 ENV SHELL "/bin/sh"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sed 's#/proc/self/exe#$SHELL#g' | sh -s -- -y
+RUN echo "[net]" >> ~/.cargo/config.toml && \
+  echo "  git-fetch-with-cli=true" >> ~/.cargo/config.toml
 
 ENV PATH=/root/.cargo/bin:$PATH
 ENV RUST_BACKTRACE=1
@@ -66,6 +70,15 @@ RUN git clone https://github.com/hyperledger/indy-vdr.git && \
   sed -i "s/0.4/0.3/" /indy-vdr/indy-vdr-proxy/Cargo.toml && \
   sed -i "s/0.4.0/0.3.9/" /indy-vdr/wrappers/python/indy_vdr/version.py && \
   cd ./indy-vdr && \
+  cargo build --lib --release
+#  sh build.sh
+
+ENV BUILD_FEATURES ""
+
+# anoncreds-rs
+RUN curl -sOL https://github.com/hyperledger/anoncreds-rs/archive/v${ANONCREDS_VERSION}.tar.gz && \
+  tar -xvf v${ANONCREDS_VERSION}.tar.gz && \
+  cd ./anoncreds-rs-${ANONCREDS_VERSION} && \
   sh build.sh
 
 # arm + amd compatible Dockerfile
@@ -76,6 +89,7 @@ ARG CREDX_VERSION
 FROM python:3.9-slim
 ARG ASKAR_VERSION
 ARG CREDX_VERSION
+ARG ANONCREDS_VERSION
 
 # Copy both libs and wrapper code
 
@@ -103,6 +117,14 @@ COPY --from=askar-builder /indy-vdr/target/release/libindy_vdr.d /usr/lib/libind
 COPY --from=askar-builder /indy-vdr/target/release/libindy_vdr.rlib /usr/lib/libindy_vdr.rlib
 COPY --from=askar-builder /indy-vdr/target/release/libindy_vdr.so /usr/lib/libindy_vdr.so
 COPY --from=askar-builder /indy-vdr /indy-vdr
+
+# anoncreds-rs
+COPY --from=askar-builder /anoncreds-rs-${ANONCREDS_VERSION}/target/release/libanoncreds.a /usr/lib/libanoncreds.a
+COPY --from=askar-builder /anoncreds-rs-${ANONCREDS_VERSION}/target/release/libanoncreds.d /usr/lib/libanoncreds.d
+COPY --from=askar-builder /anoncreds-rs-${ANONCREDS_VERSION}/target/release/libanoncreds.rlib /usr/lib/libanoncreds.rlib
+COPY --from=askar-builder /anoncreds-rs-${ANONCREDS_VERSION}/target/release/libanoncreds.so /usr/lib/libanoncreds.so
+COPY --from=askar-builder /anoncreds-rs-${ANONCREDS_VERSION} /anoncreds-rs-${ANONCREDS_VERSION}
+
 
 RUN apt-get update \
   && apt-get install -y git gnupg2 software-properties-common curl build-essential

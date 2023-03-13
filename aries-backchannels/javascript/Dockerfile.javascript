@@ -67,12 +67,12 @@ ENV RUN_MODE="docker"
 COPY javascript/server/package.json package.json
 
 RUN cd /anoncreds-rs-${ANONCREDS_VERSION}/wrappers/javascript && \
-  yarn install && \
+  yarn --network-timeout 100000 install && \
   yarn build
 
 # Run install after copying only depdendency file
 # to make use of docker layer caching
-RUN yarn install
+RUN yarn --network-timeout 100000 install
 
 # Copy other depedencies
 COPY javascript/server .

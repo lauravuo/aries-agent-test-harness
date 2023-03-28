@@ -61,6 +61,8 @@ RUN apt-get install -y --no-install-recommends yarn
 
 FROM base as final
 
+ARG ANONCREDS_VERSION
+
 WORKDIR /src
 ENV RUN_MODE="docker"
 

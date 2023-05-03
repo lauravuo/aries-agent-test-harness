@@ -1,13 +1,7 @@
-ARG ANONCREDS_VERSION="0.1.0-dev.9"
-
-FROM ghcr.io/lauravuo/aries-agent-test-harness/acapy-main-base AS anoncreds-base
-
 # arm + amd compatible Dockerfile
 FROM ghcr.io/findy-network/findy-agent-infra/indy-base:indy-1.16.ubuntu-22.04 AS indy-base
 
 FROM ubuntu:22.04 as base
-
-ARG ANONCREDS_VERSION
 
 # install indy deps and files from base
 RUN apt-get update && apt-get install -y libsodium23 libzmq5
@@ -18,14 +12,6 @@ COPY --from=indy-base /usr/lib/libssl.so.1.1 /usr/lib/libssl.so.1.1
 COPY --from=indy-base /usr/include/indy /usr/include/indy
 COPY --from=indy-base /usr/lib/libindy.a /usr/lib/libindy.a
 COPY --from=indy-base /usr/lib/libindy.so /usr/lib/libindy.so
-
-COPY --from=anoncreds-base /usr/lib/libanoncreds.a /usr/lib/libanoncreds.a
-COPY --from=anoncreds-base /usr/lib/libanoncreds.d /usr/lib/libanoncreds.d
-COPY --from=anoncreds-base /usr/lib/libanoncreds.rlib /usr/lib/libanoncreds.rlib
-COPY --from=anoncreds-base /usr/lib/libanoncreds.so /usr/lib/libanoncreds.so
-COPY --from=anoncreds-base /anoncreds-rs-${ANONCREDS_VERSION} /anoncreds-rs-${ANONCREDS_VERSION}
-
-ENV LIB_ANONCREDS_PATH /usr/lib/
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -61,16 +47,10 @@ RUN apt-get install -y --no-install-recommends yarn
 
 FROM base as final
 
-ARG ANONCREDS_VERSION
-
 WORKDIR /src
 ENV RUN_MODE="docker"
 
 COPY javascript/server/package.json package.json
-
-RUN cd /anoncreds-rs-${ANONCREDS_VERSION}/wrappers/javascript && \
-  yarn --network-timeout 100000 install && \
-  yarn build
 
 # Run install after copying only depdendency file
 # to make use of docker layer caching

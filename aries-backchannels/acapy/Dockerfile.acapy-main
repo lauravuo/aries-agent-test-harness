@@ -1,10 +1,4 @@
-ARG ASKAR_VERSION="0.2.7"
-ARG CREDX_VERSION="0.3.1"
-#ARG VDR_VERSION="0.3.4"
-
 FROM ghcr.io/lauravuo/aries-agent-test-harness/acapy-main-base
-ARG ASKAR_VERSION
-ARG CREDX_VERSION
 
 RUN mkdir -p /aries-backchannels
 WORKDIR /aries-backchannels
@@ -13,10 +7,8 @@ ADD https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 ./jq
 RUN chmod +x ./jq
 
 # install local wrappers
-RUN python3 -m pip install /aries-askar-${ASKAR_VERSION}/wrappers/python
-RUN python3 -m pip install /ffi-bbs-signatures/wrappers/python
-RUN python3 -m pip install /indy-shared-rs-${CREDX_VERSION}/wrappers/python
-RUN python3 -m pip install /indy-vdr/wrappers/python
+RUN python3 -m pip install /ffi-bbs-signatures/wrappers/python && \
+  python3 -m pip install /indy-vdr/wrappers/python
 
 COPY python/requirements.txt python/
 COPY acapy/requirements-main.txt acapy/
